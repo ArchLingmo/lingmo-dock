@@ -23,6 +23,7 @@
 #include "applicationitem.h"
 #include "docksettings.h"
 #include <QObject>
+#include <QSet>
 
 // KLIB
 #include <KWindowInfo>
@@ -63,6 +64,11 @@ signals:
 
 private:
     void onWindowadded(quint64 wid);
+    void onWindowRemoved(quint64 wid);
+    void onWindowChanged(WId wid, NET::Properties properties, NET::Properties2 properties2);
+
+    // Windows the dock shows, so a window can come and go when its state changes
+    QSet<quint64> m_shownWindows;
 };
 
 #endif // XWINDOWINTERFACE_H

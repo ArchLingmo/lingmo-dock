@@ -81,7 +81,8 @@ XWindowInterface::XWindowInterface(QObject *parent)
     : QObject(parent)
 {
     connect(KX11Extras::self(), &KX11Extras::windowAdded, this, &XWindowInterface::onWindowadded);
-    connect(KX11Extras::self(), &KX11Extras::windowRemoved, this, &XWindowInterface::windowRemoved);
+    connect(KX11Extras::self(), &KX11Extras::windowRemoved, this, &XWindowInterface::onWindowRemoved);
+    connect(KX11Extras::self(), &KX11Extras::windowChanged, this, &XWindowInterface::onWindowChanged);
     connect(KX11Extras::self(), &KX11Extras::activeWindowChanged, this, &XWindowInterface::activeChanged);
 }
 
@@ -280,6 +281,28 @@ void XWindowInterface::setIconGeometry(quint64 wid, const QRect &rect)
 void XWindowInterface::onWindowadded(quint64 wid)
 {
     if (isAcceptableWindow(wid)) {
+        m_shownWindows.insert(wid);
         emit windowAdded(wid);
+    }
+}
+
+void XWindowInterface::onWindowRemoved(quint64 wid)
+{
+    if (m_shownWindows.remove(wid))
+        emit windowRemoved(wid);
+}
+
+void XWindowInterface::onWindowChanged(WId wid, NET::Properties properties, NET::Properties2 properties2)
+{
+    // Apps often set "skip taskbar" (or the window type) right after mapping the
+    // window, when it was already added: follow those changes both ways
+    if (!(properties & (NET::WMState | NET::WMWindowType)) && !(properties2 & NET::WM2TransientFor))
+        return;
+    const bool acceptable = isAcceptableWindow(wid);
+    if (acceptable && !m_shownWindows.contains(wid)) {
+        m_shownWindows.insert(wid);
+        emit windowAdded(wid);
+    } else if (!acceptable && m_shownWindows.remove(wid)) {
+        emit windowRemoved(wid);
     }
 }
