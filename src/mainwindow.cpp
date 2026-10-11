@@ -117,6 +117,7 @@ MainWindow::MainWindow(QQuickView *parent)
     connect(m_settings, &DockSettings::iconSizeChanged, this, &MainWindow::onIconSizeChanged);
     connect(m_settings, &DockSettings::visibilityChanged, this, &MainWindow::onVisibilityChanged);
     connect(m_settings, &DockSettings::styleChanged, this, &MainWindow::resizeWindow);
+    connect(m_settings, &DockSettings::backgroundChanged, this, &MainWindow::backgroundChanged);
 
     // The primary screen may have changed while the QML above was loading: the session
     // runs autostart entries (xrandr layouts, ...) as soon as the desktop is up
@@ -180,6 +181,16 @@ int MainWindow::style() const
 void MainWindow::setStyle(int style)
 {
     DockSettings::self()->setStyle(static_cast<DockSettings::Style>(style));
+}
+
+int MainWindow::background() const
+{
+    return DockSettings::self()->background();
+}
+
+void MainWindow::setBackground(int background)
+{
+    DockSettings::self()->setBackground(static_cast<DockSettings::Background>(background));
 }
 
 void MainWindow::updateSize()

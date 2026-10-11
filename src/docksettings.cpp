@@ -65,6 +65,7 @@ DockSettings::DockSettings(QObject *parent)
     m_visibility = static_cast<Visibility>(m_settings->value("Visibility").toInt());
     m_roundedWindowEnabled = m_settings->value("RoundedWindow").toBool();
     m_style = static_cast<Style>(m_settings->value("Style").toInt());
+    m_background = static_cast<Background>(qBound(0, m_settings->value("Background", Solid).toInt(), int(NoBackground)));
     m_edgeMargins = m_settings->value("EdgeMargins").toInt();
 }
 
@@ -136,6 +137,20 @@ void DockSettings::setRoundedWindowEnabled(bool enabled)
 DockSettings::Style DockSettings::style() const
 {
     return m_style;
+}
+
+DockSettings::Background DockSettings::background() const
+{
+    return m_background;
+}
+
+void DockSettings::setBackground(Background background)
+{
+    if (background < Solid || background > NoBackground || m_background == background)
+        return;
+    m_background = background;
+    m_settings->setValue("Background", background);
+    emit backgroundChanged();
 }
 
 void DockSettings::setStyle(const DockSettings::Style &style)

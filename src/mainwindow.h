@@ -37,6 +37,7 @@ class MainWindow : public QQuickView
     Q_PROPERTY(int direction READ direction NOTIFY directionChanged)
     Q_PROPERTY(int visibility READ visibility NOTIFY visibilityChanged)
     Q_PROPERTY(int style READ style NOTIFY styleChanged)
+    Q_PROPERTY(int background READ background NOTIFY backgroundChanged)
 
 public:
     explicit MainWindow(QQuickView *parent = nullptr);
@@ -59,6 +60,10 @@ public:
     int style() const;
     void setStyle(int style);
 
+    // 0 solid, 1 glass, 2 no background (Lingmo Settings › Dock)
+    int background() const;
+    void setBackground(int background);
+
     Q_INVOKABLE void updateSize();
 
     // The window preview popup is open: an auto-hiding dock stays up meanwhile
@@ -71,6 +76,7 @@ signals:
     void primaryGeometryChanged();
     void visibilityChanged();
     void styleChanged();
+    void backgroundChanged();
 
 private:
     QRect windowRect() const;

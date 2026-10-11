@@ -14,6 +14,12 @@ Item {
     property bool isHorizontal: Settings.direction === DockSettings.Bottom
     property real windowRadius: isHorizontal ? root.height * 0.35 : root.width * 0.35
     property bool compositing: windowHelper.compositing
+    // Settings › Dock › Background. Glass and none need a compositor (a see-through
+    // window is black without one), so they fall back to the solid panel.
+    readonly property bool glassBackground: Settings.background === DockSettings.Glass && windowHelper.compositing
+    readonly property bool noBackground: Settings.background === DockSettings.NoBackground && windowHelper.compositing
+    readonly property color panelColor: LingmoUI.Theme.darkMode ? "#2A2A2A" : "#DCDCDC"
+
     property bool roundedEnabled: Settings.roundedWindowEnabled
                                  && Settings.style === DockSettings.Round
 
@@ -35,14 +41,30 @@ Item {
                                                                                                                            : Qt.rgba(0, 0, 0, 0.15)
 
         anchors.fill: parent
+        visible: !root.noBackground
         radius: roundedEnabled ? windowRadius : 0
-        opacity: windowHelper.compositing ? LingmoUI.Theme.darkMode ? 0.65 : 0.75
+        opacity: root.glassBackground ? 1
+               : windowHelper.compositing ? LingmoUI.Theme.darkMode ? 0.65 : 0.75
                                           : roundedEnabled ? LingmoUI.Theme.darkMode ? 0.9 : 0.95
                                                            : 1
-        color: LingmoUI.Theme.darkMode ? "#2A2A2A" : "#DCDCDC"
+        // Glass: a faint white tint over the blurred desktop instead of the grey panel
+        color: root.glassBackground ? (LingmoUI.Theme.darkMode ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.28))
+                                    : root.panelColor
         border.width: 1 / LingmoUI.Units.devicePixelRatio
         border.pixelAligned: LingmoUI.Units.devicePixelRatio > 1 ? false : true
-        border.color: borderColor
+        border.color: root.glassBackground ? Qt.rgba(1, 1, 1, LingmoUI.Theme.darkMode ? 0.22 : 0.55) : borderColor
+
+        // Glass sheen: light catching the top edge
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: parent.border.width
+            radius: Math.max(0, parent.radius - parent.border.width)
+            visible: root.glassBackground
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, LingmoUI.Theme.darkMode ? 0.12 : 0.30) }
+                GradientStop { position: 0.45; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
 
         Behavior on color {
             ColorAnimation {
@@ -59,7 +81,7 @@ Item {
     LingmoUI.WindowShadow {
         view: mainWindow
         geometry: Qt.rect(root.x, root.y, root.width, root.height)
-        strength: 1
+        strength: root.noBackground ? 0 : 1
         radius: _background.radius
     }
 
@@ -67,12 +89,12 @@ Item {
         view: mainWindow
         geometry: Qt.rect(root.x, root.y, root.width, root.height)
         windowRadius: _background.radius
-        enabled: true
+        enabled: !root.noBackground
     }
 
     LingmoUI.PopupTips {
         id: popupTips
-        backgroundColor: _background.color
+        backgroundColor: root.panelColor
         blurEnabled: false
     }
 

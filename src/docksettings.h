@@ -31,6 +31,7 @@ class DockSettings : public QObject
     Q_PROPERTY(int edgeMargins READ edgeMargins WRITE setEdgeMargins)
     Q_PROPERTY(bool roundedWindowEnabled READ roundedWindowEnabled WRITE setRoundedWindowEnabled NOTIFY roundedWindowEnabledChanged)
     Q_PROPERTY(Style style READ style WRITE setStyle NOTIFY styleChanged)
+    Q_PROPERTY(Background background READ background WRITE setBackground NOTIFY backgroundChanged)
 
 public:
     enum Direction {
@@ -54,6 +55,14 @@ public:
     };
     Q_ENUMS(Style)
 
+    // What's behind the icons: the tinted panel, see-through glass, or nothing
+    enum Background {
+        Solid = 0,
+        Glass,
+        NoBackground
+    };
+    Q_ENUMS(Background)
+
     static DockSettings *self();
     explicit DockSettings(QObject *parent = nullptr);
 
@@ -75,12 +84,16 @@ public:
     Style style() const;
     void setStyle(const Style &style);
 
+    Background background() const;
+    void setBackground(Background background);
+
 signals:
     void iconSizeChanged();
     void directionChanged();
     void visibilityChanged();
     void roundedWindowEnabledChanged();
     void styleChanged();
+    void backgroundChanged();
 
 private:
     int m_iconSize;
@@ -89,6 +102,7 @@ private:
     Direction m_direction;
     Visibility m_visibility;
     Style m_style;
+    Background m_background = Solid;
     QSettings *m_settings;
 };
 
