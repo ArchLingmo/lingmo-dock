@@ -46,10 +46,9 @@ int main(int argc, char *argv[])
 
     if (QIcon::themeName().isEmpty()) {
         const QStringList candidates = {
+            QStringLiteral("Lingmo"),
             QStringLiteral("Crule"),
             QStringLiteral("crule"),
-            QStringLiteral("lingmo"),
-            QStringLiteral("Lingmo"),
             QStringLiteral("breeze"),
             QStringLiteral("hicolor")
         };

@@ -34,9 +34,13 @@ Item {
     property bool dragStarted: false
 
     // Magnification (Settings › Dock, off by default): the icon under the pointer
-    // grows to fill its cell and its neighbours a little less, following the
-    // pointer along the dock
-    property real maxMagnification: 1 / iconSizeRatio
+    // grows to Settings.magnificationSize percent and its neighbours a little
+    // less, following the pointer along the dock. The window has room for that
+    // on the screen side (mainWindow.magnificationExtent); without it (no
+    // compositor) the icon only grows until it fills its cell.
+    readonly property bool magnifyOutward: mainWindow.magnificationExtent > 0
+    property real maxMagnification: magnifyOutward ? Settings.magnificationSize / 100
+                                                   : Math.min(Settings.magnificationSize / 100, 1 / iconSizeRatio)
     readonly property real magnificationAmount: {
         if (!Settings.magnification || root.hoverPos < 0 || control.dragStarted)
             return 0
@@ -47,6 +51,8 @@ Item {
         return t * t * (3 - 2 * t)      // smoothstep
     }
     property real magnificationScale: 1 + (maxMagnification - 1) * magnificationAmount
+    // The bigger icon is drawn over its neighbours
+    z: magnificationAmount
     property int animationDuration: 90
 
     signal positionChanged()
@@ -81,7 +87,9 @@ Item {
 
         // Apply magnification scale
         scale: magnificationScale
-        transformOrigin: Item.Center
+        // Grows away from the screen edge, into the room above the panel
+        transformOrigin: !control.magnifyOutward ? Item.Center
+                       : isLeft ? Item.Left : isRight ? Item.Right : Item.Bottom
 
         visible: !dragStarted
 
@@ -167,14 +175,14 @@ Item {
                 popupTips.popupText = control.popupText
 
                 if (Settings.direction === DockSettings.Left)
-                    popupTips.position = Qt.point(root.mapToGlobal(root.width, 0).x + LingmoUI.Units.largeSpacing,
+                    popupTips.position = Qt.point(root.mapToGlobal(root.width, 0).x + mainWindow.magnificationExtent + LingmoUI.Units.largeSpacing,
                                                   control.mapToGlobal(0, 0).y + (control.height / 2 - popupTips.height / 2))
                 else if (Settings.direction === DockSettings.Right)
-                    popupTips.position = Qt.point(control.mapToGlobal(0, 0).x - popupTips.width - LingmoUI.Units.smallSpacing / 2,
+                    popupTips.position = Qt.point(control.mapToGlobal(0, 0).x - mainWindow.magnificationExtent - popupTips.width - LingmoUI.Units.smallSpacing / 2,
                                                   control.mapToGlobal(0, 0).y + (control.height / 2 - popupTips.height / 2))
                 else
                     popupTips.position = Qt.point(control.mapToGlobal(0, 0).x + (control.width / 2 - popupTips.width / 2),
-                                                  control.mapToGlobal(0, 0).y - popupTips.height - LingmoUI.Units.smallSpacing)
+                                                  control.mapToGlobal(0, 0).y - mainWindow.magnificationExtent - popupTips.height - LingmoUI.Units.smallSpacing)
 
                 popupTips.show()
             } else {

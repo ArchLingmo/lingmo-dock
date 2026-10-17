@@ -74,6 +74,8 @@ DockSettings::DockSettings(QObject *parent)
     m_background = static_cast<Background>(qBound(0, m_settings->value("Background", Solid).toInt(), int(NoBackground)));
     m_edgeMargins = m_settings->value("EdgeMargins").toInt();
     m_magnification = m_settings->value("Magnification", false).toBool();
+    m_magnificationSize = qBound(int(MinMagnificationSize), m_settings->value("MagnificationSize", 150).toInt(),
+                                 int(MaxMagnificationSize));
 }
 
 int DockSettings::iconSize() const
@@ -172,6 +174,21 @@ void DockSettings::setMagnification(bool enabled)
     m_magnification = enabled;
     m_settings->setValue("Magnification", enabled);
     emit magnificationChanged();
+}
+
+int DockSettings::magnificationSize() const
+{
+    return m_magnificationSize;
+}
+
+void DockSettings::setMagnificationSize(int percent)
+{
+    percent = qBound(int(MinMagnificationSize), percent, int(MaxMagnificationSize));
+    if (m_magnificationSize == percent)
+        return;
+    m_magnificationSize = percent;
+    m_settings->setValue("MagnificationSize", percent);
+    emit magnificationSizeChanged();
 }
 
 void DockSettings::setStyle(const DockSettings::Style &style)

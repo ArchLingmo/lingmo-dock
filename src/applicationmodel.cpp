@@ -21,6 +21,7 @@
 #include "processprovider.h"
 #include "utils.h"
 
+#include <QIcon>
 #include <QProcess>
 #include <utility>
 
@@ -374,7 +375,7 @@ static void migrateTerminalPin(QSettings &pinned)
     pinned.beginGroup("lingmo-terminal");
     pinned.setValue("DesktopPath", terminalDesktop);
     pinned.setValue("Exec", "lingmo-terminal");
-    pinned.setValue("Icon", "utilities-terminal");
+    pinned.setValue("Icon", "lingmo-terminal");
     pinned.setValue("Index", index);
     pinned.setValue("VisibleName", "Terminal");
     pinned.endGroup();
@@ -395,7 +396,9 @@ void ApplicationModel::initPinnedApplications()
     ApplicationItem *item = new ApplicationItem;
     item->id = "lingmo-launcher";
     item->exec = "lingmo-launcher";
-    item->iconName = "qrc:/images/rocket.svg";
+    // The Lingmo icon theme draws the launcher (hicolor has a copy for other themes)
+    item->iconName = QIcon::hasThemeIcon(QStringLiteral("lingmo-launcher"))
+            ? QStringLiteral("lingmo-launcher") : QStringLiteral("qrc:/images/rocket.svg");
     item->visibleName = tr("Launcher");
     item->fixed = true;
     m_appItems.append(item);

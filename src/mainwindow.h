@@ -39,6 +39,9 @@ class MainWindow : public QQuickView
     Q_PROPERTY(int style READ style NOTIFY styleChanged)
     Q_PROPERTY(int background READ background NOTIFY backgroundChanged)
     Q_PROPERTY(bool magnification READ magnification NOTIFY magnificationChanged)
+    Q_PROPERTY(int magnificationSize READ magnificationSize NOTIFY magnificationSizeChanged)
+    // Room above (or beside) the dock's panel for the magnified icons, in px
+    Q_PROPERTY(int magnificationExtent READ magnificationExtent NOTIFY magnificationExtentChanged)
 
 public:
     explicit MainWindow(QQuickView *parent = nullptr);
@@ -68,6 +71,9 @@ public:
     // Magnify icons on hover (Lingmo Settings › Dock)
     bool magnification() const;
     void setMagnification(bool enabled);
+    int magnificationSize() const;
+    void setMagnificationSize(int percent);
+    int magnificationExtent() const { return m_magnificationExtent; }
 
     Q_INVOKABLE void updateSize();
 
@@ -83,9 +89,17 @@ signals:
     void styleChanged();
     void backgroundChanged();
     void magnificationChanged();
+    void magnificationSizeChanged();
+    void magnificationExtentChanged();
 
 private:
+    // The panel itself; the window adds magnificationExtent on the screen side
     QRect windowRect() const;
+    int extentFor(const QRect &panel) const;
+    // Moves/resizes the window to the panel plus the magnification room
+    void applyGeometry();
+    // Only the panel takes clicks: the room above it stays click-through
+    void updateInputShape();
     void resizeWindow();
     void initScreens();
     void initSlideWindow();
@@ -123,6 +137,9 @@ private:
     QTimer *m_showTimer;
     QTimer *m_relayout = nullptr;
     QTimer *m_hideTimer;
+
+    QRect m_panelRect;
+    int m_magnificationExtent = 0;
 };
 
 #endif // MAINWINDOW_H

@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 CONFIG REQUIRED Widgets DBus Gui GuiPrivate Concurrent LinguistTools QuickControls2)
-find_package(XCB REQUIRED COMPONENTS XCB XFIXES COMPOSITE RENDER)
+find_package(XCB REQUIRED COMPONENTS XCB XFIXES COMPOSITE RENDER SHAPE)
 
 find_package(KF6WindowSystem REQUIRED)
 
@@ -56,6 +56,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         XCB::XCB
         XCB::COMPOSITE
         XCB::RENDER
+        XCB::SHAPE
 )
 
 file(GLOB TS_FILES translations/*.ts)

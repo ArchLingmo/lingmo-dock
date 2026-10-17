@@ -36,6 +36,10 @@
 #include <KWindowEffects>
 #include <KX11Extras>
 
+#include <QtMath>
+#include <xcb/xcb.h>
+#include <xcb/shape.h>
+
 MainWindow::MainWindow(QQuickView *parent)
     : QQuickView(parent)
     , m_activity(Activity::self())
@@ -119,6 +123,10 @@ MainWindow::MainWindow(QQuickView *parent)
     connect(m_settings, &DockSettings::styleChanged, this, &MainWindow::resizeWindow);
     connect(m_settings, &DockSettings::backgroundChanged, this, &MainWindow::backgroundChanged);
     connect(m_settings, &DockSettings::magnificationChanged, this, &MainWindow::magnificationChanged);
+    connect(m_settings, &DockSettings::magnificationSizeChanged, this, &MainWindow::magnificationSizeChanged);
+    // Bigger icons need more room above the panel
+    connect(m_settings, &DockSettings::magnificationChanged, this, &MainWindow::resizeWindow);
+    connect(m_settings, &DockSettings::magnificationSizeChanged, this, &MainWindow::resizeWindow);
 
     // The primary screen may have changed while the QML above was loading: the session
     // runs autostart entries (xrandr layouts, ...) as soon as the desktop is up
@@ -146,7 +154,8 @@ bool MainWindow::pinned(const QString &desktop)
 
 QRect MainWindow::primaryGeometry() const
 {
-    return geometry();
+    // The panel, without the see-through room for magnified icons
+    return m_panelRect.isValid() ? m_panelRect : geometry();
 }
 
 int MainWindow::direction() const
@@ -202,6 +211,16 @@ bool MainWindow::magnification() const
 void MainWindow::setMagnification(bool enabled)
 {
     DockSettings::self()->setMagnification(enabled);
+}
+
+int MainWindow::magnificationSize() const
+{
+    return DockSettings::self()->magnificationSize();
+}
+
+void MainWindow::setMagnificationSize(int percent)
+{
+    DockSettings::self()->setMagnificationSize(percent);
 }
 
 void MainWindow::updateSize()
@@ -311,9 +330,81 @@ QRect MainWindow::windowRect() const
     return QRect(position, newSize);
 }
 
+int MainWindow::extentFor(const QRect &panel) const
+{
+    QQuickItem *item = qobject_cast<QQuickItem *>(rootObject());
+    const bool compositing = item && item->property("compositing").toBool();
+    // Without a compositor the room would be painted black: the icons then
+    // only grow inside the panel (see DockItem.qml)
+    if (!m_settings->magnification() || !compositing)
+        return 0;
+
+    // DockItem: the icon is 0.8 of the cell and grows from the edge of the cell
+    // nearest the screen edge, 0.1 cell away from it
+    const int cell = m_settings->direction() == DockSettings::Bottom ? panel.height() : panel.width();
+    const qreal zoom = m_settings->magnificationSize() / 100.0;
+    return qMax(0, qCeil(cell * (0.8 * zoom - 0.9))) + 2;
+}
+
+void MainWindow::applyGeometry()
+{
+    const QRect panel = windowRect();
+    const int extent = extentFor(panel);
+    QRect rect = panel;
+
+    switch (m_settings->direction()) {
+    case DockSettings::Left:
+        rect.setRight(rect.right() + extent);
+        break;
+    case DockSettings::Right:
+        rect.setLeft(rect.left() - extent);
+        break;
+    case DockSettings::Bottom:
+    default:
+        rect.setTop(rect.top() - extent);
+        break;
+    }
+
+    m_panelRect = panel;
+    if (m_magnificationExtent != extent) {
+        m_magnificationExtent = extent;
+        emit magnificationExtentChanged();
+    }
+    setGeometry(rect);
+    updateInputShape();
+}
+
+void MainWindow::updateInputShape()
+{
+    if (!KWindowSystem::isPlatformX11())
+        return;
+    auto *x11 = qGuiApp->nativeInterface<QNativeInterface::QX11Application>();
+    xcb_connection_t *c = x11 ? x11->connection() : nullptr;
+    if (!c)
+        return;
+
+    const xcb_window_t win = winId();
+    if (m_magnificationExtent == 0) {
+        // Back to the default: the whole window takes input
+        xcb_shape_mask(c, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_INPUT, win, 0, 0, XCB_PIXMAP_NONE);
+    } else {
+        // X11 works in device pixels
+        const qreal dpr = devicePixelRatio();
+        const QRect local(m_panelRect.topLeft() - geometry().topLeft(), m_panelRect.size());
+        xcb_rectangle_t r;
+        r.x = qRound(local.x() * dpr);
+        r.y = qRound(local.y() * dpr);
+        r.width = qRound(local.width() * dpr);
+        r.height = qRound(local.height() * dpr);
+        xcb_shape_rectangles(c, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_INPUT, XCB_CLIP_ORDERING_UNSORTED,
+                             win, 0, 0, 1, &r);
+    }
+    xcb_flush(c);
+}
+
 void MainWindow::resizeWindow()
 {
-    setGeometry(windowRect());
+    applyGeometry();
     updateViewStruts();
 
     emit resizingFished();
@@ -367,7 +458,8 @@ void MainWindow::updateViewStruts()
     }
 
     if (m_settings->visibility() == DockSettings::AlwaysShow || m_activity->launchPad()) {
-        XWindowInterface::instance()->setViewStruts(this, m_settings->direction(), geometry(), compositing);
+        XWindowInterface::instance()->setViewStruts(this, m_settings->direction(),
+                                                    m_panelRect.isValid() ? m_panelRect : geometry(), compositing);
     } else {
         clearViewStruts();
     }
@@ -454,7 +546,7 @@ void MainWindow::onPositionChanged()
         initSlideWindow();
         // Setting geometry needs to be displayed, otherwise it will be invalid.
         setVisible(true);
-        setGeometry(windowRect());
+        applyGeometry();
         updateViewStruts();
 
         m_hideTimer->start();
@@ -462,7 +554,7 @@ void MainWindow::onPositionChanged()
         setVisible(false);
         initSlideWindow();
         setVisible(true);
-        setGeometry(windowRect());
+        applyGeometry();
         updateViewStruts();
     }
 
@@ -471,7 +563,7 @@ void MainWindow::onPositionChanged()
 
 void MainWindow::onIconSizeChanged()
 {
-    setGeometry(windowRect());
+    applyGeometry();
     updateViewStruts();
 
     emit iconSizeChanged();
@@ -493,7 +585,7 @@ void MainWindow::onVisibilityChanged()
     if (m_settings->visibility() == DockSettings::AlwaysShow) {
         m_hideTimer->stop();
 
-        setGeometry(windowRect());
+        applyGeometry();
         setVisible(true);
         updateViewStruts();
 
@@ -505,7 +597,7 @@ void MainWindow::onVisibilityChanged()
 
     if (m_settings->visibility() == DockSettings::IntellHide) {
         clearViewStruts();
-        setGeometry(windowRect());
+        applyGeometry();
 
         if (m_activity->existsWindowMaximized() && !m_hideBlocked && !m_previewVisible) {
             setVisible(false);
@@ -520,7 +612,7 @@ void MainWindow::onVisibilityChanged()
     // Always hide
     if (m_settings->visibility() == DockSettings::AlwaysHide) {
         clearViewStruts();
-        setGeometry(windowRect());
+        applyGeometry();
         setVisible(m_hideBlocked);
 
         // Create

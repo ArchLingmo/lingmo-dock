@@ -14,6 +14,9 @@
     <method name="setStyle"><arg name="style" type="i" direction="in"/></method>
     <method name="setBackground"><arg name="background" type="i" direction="in"/></method>
     <method name="setMagnification"><arg name="enabled" type="b" direction="in"/></method>
+    <!-- Icon size under the pointer, percent of the normal size (125-200),
+         saved in ~/.config/lingmoos/dock.conf [General] MagnificationSize -->
+    <method name="setMagnificationSize"><arg name="percent" type="i" direction="in"/></method>
 
     <property name="primaryGeometry" type="(iiii)" access="read">
       <annotation name="org.qtproject.QtDBus.QtTypeName" value="QRect"/>
@@ -24,6 +27,7 @@
     <property name="style" type="i" access="read"></property>
     <property name="background" type="i" access="read"></property>
     <property name="magnification" type="b" access="read"></property>
+    <property name="magnificationSize" type="i" access="read"></property>
 
     <signal name="primaryGeometryChanged"></signal>
     <signal name="directionChanged"></signal>
@@ -31,6 +35,7 @@
     <signal name="styleChanged"></signal>
     <signal name="backgroundChanged"></signal>
     <signal name="magnificationChanged"></signal>
+    <signal name="magnificationSizeChanged"></signal>
 
   </interface>
 </node>

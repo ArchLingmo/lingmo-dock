@@ -33,6 +33,7 @@ class DockSettings : public QObject
     Q_PROPERTY(Style style READ style WRITE setStyle NOTIFY styleChanged)
     Q_PROPERTY(Background background READ background WRITE setBackground NOTIFY backgroundChanged)
     Q_PROPERTY(bool magnification READ magnification WRITE setMagnification NOTIFY magnificationChanged)
+    Q_PROPERTY(int magnificationSize READ magnificationSize WRITE setMagnificationSize NOTIFY magnificationSizeChanged)
 
 public:
     enum Direction {
@@ -92,6 +93,13 @@ public:
     bool magnification() const;
     void setMagnification(bool enabled);
 
+    // How big the icon under the pointer gets, in percent of its normal size
+    // (dock.conf MagnificationSize, 125-200)
+    static constexpr int MinMagnificationSize = 125;
+    static constexpr int MaxMagnificationSize = 200;
+    int magnificationSize() const;
+    void setMagnificationSize(int percent);
+
 signals:
     void iconSizeChanged();
     void directionChanged();
@@ -100,6 +108,7 @@ signals:
     void styleChanged();
     void backgroundChanged();
     void magnificationChanged();
+    void magnificationSizeChanged();
 
 private:
     int m_iconSize;
@@ -110,6 +119,7 @@ private:
     Style m_style;
     Background m_background = Solid;
     bool m_magnification = false;
+    int m_magnificationSize = 150;
     QSettings *m_settings;
 };
 
