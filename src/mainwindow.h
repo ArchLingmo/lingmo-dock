@@ -38,6 +38,7 @@ class MainWindow : public QQuickView
     Q_PROPERTY(int visibility READ visibility NOTIFY visibilityChanged)
     Q_PROPERTY(int style READ style NOTIFY styleChanged)
     Q_PROPERTY(int background READ background NOTIFY backgroundChanged)
+    Q_PROPERTY(bool magnification READ magnification NOTIFY magnificationChanged)
 
 public:
     explicit MainWindow(QQuickView *parent = nullptr);
@@ -64,6 +65,10 @@ public:
     int background() const;
     void setBackground(int background);
 
+    // Magnify icons on hover (Lingmo Settings › Dock)
+    bool magnification() const;
+    void setMagnification(bool enabled);
+
     Q_INVOKABLE void updateSize();
 
     // The window preview popup is open: an auto-hiding dock stays up meanwhile
@@ -77,6 +82,7 @@ signals:
     void visibilityChanged();
     void styleChanged();
     void backgroundChanged();
+    void magnificationChanged();
 
 private:
     QRect windowRect() const;

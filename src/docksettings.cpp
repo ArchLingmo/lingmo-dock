@@ -45,6 +45,12 @@ DockSettings::DockSettings(QObject *parent)
     , m_visibility(AlwaysShow)
     , m_settings(new QSettings(QSettings::UserScope, "lingmoos", "dock"))
 {
+    // A config written for the first time gets the glass background; existing
+    // ones keep the solid panel they had (no Background key means Solid)
+    const bool newConfig = !m_settings->contains("IconSize");
+    if (newConfig && !m_settings->contains("Background"))
+        m_settings->setValue("Background", Glass);
+
     if (!m_settings->contains("IconSize"))
         m_settings->setValue("IconSize", 53);
     if (!m_settings->contains("Direction"))
@@ -67,6 +73,7 @@ DockSettings::DockSettings(QObject *parent)
     m_style = static_cast<Style>(m_settings->value("Style").toInt());
     m_background = static_cast<Background>(qBound(0, m_settings->value("Background", Solid).toInt(), int(NoBackground)));
     m_edgeMargins = m_settings->value("EdgeMargins").toInt();
+    m_magnification = m_settings->value("Magnification", false).toBool();
 }
 
 int DockSettings::iconSize() const
@@ -151,6 +158,20 @@ void DockSettings::setBackground(Background background)
     m_background = background;
     m_settings->setValue("Background", background);
     emit backgroundChanged();
+}
+
+bool DockSettings::magnification() const
+{
+    return m_magnification;
+}
+
+void DockSettings::setMagnification(bool enabled)
+{
+    if (m_magnification == enabled)
+        return;
+    m_magnification = enabled;
+    m_settings->setValue("Magnification", enabled);
+    emit magnificationChanged();
 }
 
 void DockSettings::setStyle(const DockSettings::Style &style)

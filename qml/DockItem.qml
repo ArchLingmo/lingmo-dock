@@ -33,10 +33,21 @@ Item {
 
     property bool dragStarted: false
 
-    // Magnification effect properties
-    property real magnificationScale: 1.0
-    property real maxMagnification: 1.2
-    property int animationDuration: 200
+    // Magnification (Settings › Dock, off by default): the icon under the pointer
+    // grows to fill its cell and its neighbours a little less, following the
+    // pointer along the dock
+    property real maxMagnification: 1 / iconSizeRatio
+    readonly property real magnificationAmount: {
+        if (!Settings.magnification || root.hoverPos < 0 || control.dragStarted)
+            return 0
+        const c = control.mapToItem(root, control.width / 2, control.height / 2)
+        const cell = root.isHorizontal ? control.width : control.height
+        const d = Math.abs((root.isHorizontal ? c.x : c.y) - root.hoverPos)
+        const t = Math.max(0, 1 - d / (cell * 2))
+        return t * t * (3 - 2 * t)      // smoothstep
+    }
+    property real magnificationScale: 1 + (maxMagnification - 1) * magnificationAmount
+    property int animationDuration: 90
 
     signal positionChanged()
     signal released()
@@ -147,13 +158,6 @@ Item {
         }
 
         onContainsMouseChanged: {
-            // Apply magnification effect on hover
-            if (containsMouse) {
-                magnificationScale = maxMagnification
-            } else {
-                magnificationScale = 1.0
-            }
-
             if (containsMouse && control.previewAppId !== "" && !control.dragStarted) {
                 popupTips.hide()
                 windowPreview.requestShow(control, control.previewAppId, control.iconName)
@@ -183,42 +187,41 @@ Item {
         }
     }
 
+    // Running indicator: a dot under the icon, a longer accent-coloured pill
+    // for the active app (beside the icon when the dock is on a side)
     Rectangle {
         id: activeRect
 
-        property var leftX: 2
-        property var leftY: (parent.height - height) / 2
+        readonly property real cell: isBottom ? control.height : control.width
+        readonly property real gap: (cell - control.iconSize) / 2      // space between icon and edge
+        property real dotSize: Math.max(5, Math.round(control.iconSize * 0.1))
+        property real pillLength: Math.round(control.iconSize * 0.4)
+        readonly property real length: isActive ? pillLength : dotSize
+        readonly property real offset: (gap - dotSize) / 2              // centred in that space
 
-        property var bottomX: (parent.width - width) / 2
-        property var bottomY: icon.y + icon.height + activeRect.height / 2 - 1
-
-        property var rightX: icon.x + icon.width + activeRect.width / 2 - 1
-        property var rightY: (parent.height - height) / 2
-
-        property var circleSize: isBottom ? control.height * 0.06 : control.width * 0.06
-        property var activeLength: isBottom ? control.height * 0.5 : control.height * 0.5
-
-        width: !isBottom ? circleSize : (isActive ? activeLength : circleSize)
-        height: !isBottom ? (isActive ? activeLength : circleSize) : circleSize
-        radius: !isBottom ? width / 2 : height / 2
+        width: isBottom ? length : dotSize
+        height: isBottom ? dotSize : length
+        radius: dotSize / 2
         visible: enableActivateDot && !dragStarted
-        color: LingmoUI.Theme.textColor
+        color: isActive ? LingmoUI.Theme.highlightColor
+                        : Qt.rgba(LingmoUI.Theme.textColor.r, LingmoUI.Theme.textColor.g,
+                                  LingmoUI.Theme.textColor.b, LingmoUI.Theme.darkMode ? 0.75 : 0.6)
 
-        x: isLeft ? leftX : isBottom ? bottomX : rightX
-        y: isLeft ? leftY : isBottom ? bottomY : rightY
+        x: isBottom ? (control.width - width) / 2
+                    : isLeft ? Math.max(1, offset) : control.width - Math.max(1, offset) - width
+        y: isBottom ? control.height - Math.max(1, offset) - height
+                    : (control.height - height) / 2
 
         Behavior on width {
-            NumberAnimation {
-                duration: isBottom ? 250 : 0
-                easing.type: Easing.InOutSine
-            }
+            NumberAnimation { duration: isBottom ? 250 : 0; easing.type: Easing.InOutSine }
         }
 
         Behavior on height {
-            NumberAnimation {
-                duration: !isBottom ? 250 : 0
-                easing.type: Easing.InOutSine
-            }
+            NumberAnimation { duration: !isBottom ? 250 : 0; easing.type: Easing.InOutSine }
+        }
+
+        Behavior on color {
+            ColorAnimation { duration: 200 }
         }
     }
 }

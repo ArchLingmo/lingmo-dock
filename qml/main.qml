@@ -20,6 +20,16 @@ Item {
     readonly property bool noBackground: Settings.background === DockSettings.NoBackground && windowHelper.compositing
     readonly property color panelColor: LingmoUI.Theme.darkMode ? "#2A2A2A" : "#DCDCDC"
 
+    // Pointer position along the dock (-1 when outside), for the magnification
+    readonly property real hoverPos: Settings.magnification && _dockHover.hovered
+                                     ? (isHorizontal ? _dockHover.point.position.x : _dockHover.point.position.y)
+                                     : -1
+
+    HoverHandler {
+        id: _dockHover
+        enabled: Settings.magnification
+    }
+
     property bool roundedEnabled: Settings.roundedWindowEnabled
                                  && Settings.style === DockSettings.Round
 

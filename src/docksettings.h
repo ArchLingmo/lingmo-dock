@@ -32,6 +32,7 @@ class DockSettings : public QObject
     Q_PROPERTY(bool roundedWindowEnabled READ roundedWindowEnabled WRITE setRoundedWindowEnabled NOTIFY roundedWindowEnabledChanged)
     Q_PROPERTY(Style style READ style WRITE setStyle NOTIFY styleChanged)
     Q_PROPERTY(Background background READ background WRITE setBackground NOTIFY backgroundChanged)
+    Q_PROPERTY(bool magnification READ magnification WRITE setMagnification NOTIFY magnificationChanged)
 
 public:
     enum Direction {
@@ -87,6 +88,10 @@ public:
     Background background() const;
     void setBackground(Background background);
 
+    // Icons grow under the pointer (off by default)
+    bool magnification() const;
+    void setMagnification(bool enabled);
+
 signals:
     void iconSizeChanged();
     void directionChanged();
@@ -94,6 +99,7 @@ signals:
     void roundedWindowEnabledChanged();
     void styleChanged();
     void backgroundChanged();
+    void magnificationChanged();
 
 private:
     int m_iconSize;
@@ -103,6 +109,7 @@ private:
     Visibility m_visibility;
     Style m_style;
     Background m_background = Solid;
+    bool m_magnification = false;
     QSettings *m_settings;
 };
 

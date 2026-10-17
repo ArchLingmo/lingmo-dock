@@ -13,6 +13,7 @@
     <method name="setVisibility"><arg name="visibility" type="i" direction="in"/></method>
     <method name="setStyle"><arg name="style" type="i" direction="in"/></method>
     <method name="setBackground"><arg name="background" type="i" direction="in"/></method>
+    <method name="setMagnification"><arg name="enabled" type="b" direction="in"/></method>
 
     <property name="primaryGeometry" type="(iiii)" access="read">
       <annotation name="org.qtproject.QtDBus.QtTypeName" value="QRect"/>
@@ -22,12 +23,14 @@
     <property name="visibility" type="i" access="read"></property>
     <property name="style" type="i" access="read"></property>
     <property name="background" type="i" access="read"></property>
+    <property name="magnification" type="b" access="read"></property>
 
     <signal name="primaryGeometryChanged"></signal>
     <signal name="directionChanged"></signal>
     <signal name="visibilityChanged"></signal>
     <signal name="styleChanged"></signal>
     <signal name="backgroundChanged"></signal>
+    <signal name="magnificationChanged"></signal>
 
   </interface>
 </node>
