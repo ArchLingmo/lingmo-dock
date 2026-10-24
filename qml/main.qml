@@ -55,7 +55,9 @@ Item {
             enabled: true
         }
 
-        // Background
+        readonly property real panelRadius: root.roundedEnabled ? root.windowRadius : 0
+
+        // Background: the solid panel (Solid, and Glass without a compositor)
         Rectangle {
             id: _background
 
@@ -64,36 +66,36 @@ Item {
                                                                                                                                : Qt.rgba(0, 0, 0, 0.15)
 
             anchors.fill: parent
-            visible: !root.noBackground
-            radius: root.roundedEnabled ? root.windowRadius : 0
-            opacity: root.glassBackground ? 1
-                   : windowHelper.compositing ? LingmoUI.Theme.darkMode ? 0.65 : 0.75
+            visible: !root.noBackground && !root.glassBackground
+            radius: root.panelRadius
+            opacity: windowHelper.compositing ? LingmoUI.Theme.darkMode ? 0.65 : 0.75
                                               : root.roundedEnabled ? LingmoUI.Theme.darkMode ? 0.9 : 0.95
                                                                : 1
-            // Glass: a faint white tint over the blurred desktop instead of the grey panel
-            color: root.glassBackground ? (LingmoUI.Theme.darkMode ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.28))
-                                        : root.panelColor
+            color: root.panelColor
             border.width: 1 / LingmoUI.Units.devicePixelRatio
             border.pixelAligned: LingmoUI.Units.devicePixelRatio > 1 ? false : true
-            border.color: root.glassBackground ? Qt.rgba(1, 1, 1, LingmoUI.Theme.darkMode ? 0.22 : 0.55) : borderColor
-
-            // Glass sheen: light catching the top edge
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: parent.border.width
-                radius: Math.max(0, parent.radius - parent.border.width)
-                visible: root.glassBackground
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, LingmoUI.Theme.darkMode ? 0.12 : 0.30) }
-                    GradientStop { position: 0.45; color: Qt.rgba(1, 1, 1, 0) }
-                }
-            }
+            border.color: borderColor
 
             Behavior on color {
                 ColorAnimation {
                     duration: 200
                     easing.type: Easing.Linear
                 }
+            }
+        }
+
+        // Glass: the "Vidro Lingmo" material (Settings > Appearance > Glass).
+        // The window also holds the magnification strip, so the blur is asked
+        // for the panel's rectangle only. With Glass off it is a solid panel.
+        // Loaded only for Glass: a disabled WindowBlur clears the window's blur
+        // region, which would take the solid panel's blur away
+        Loader {
+            anchors.fill: parent
+            active: root.glassBackground
+            sourceComponent: LingmoUI.GlassSurface {
+                radius: root.panelRadius
+                blurMode: LingmoUI.GlassSurface.Always
+                blurWindow: mainWindow
             }
         }
 
@@ -105,13 +107,16 @@ Item {
             view: mainWindow
             geometry: Qt.rect(root.x, root.y, root.width, root.height)
             strength: root.noBackground ? 0 : 1
-            radius: _background.radius
+            radius: root.panelRadius
         }
 
+        // Blur behind the panel (only the panel: the window also holds the
+        // magnification strip). The glass asks for the same region.
         LingmoUI.WindowBlur {
             view: mainWindow
             geometry: Qt.rect(root.x, root.y, root.width, root.height)
-            windowRadius: _background.radius
+            blurRect: Qt.rect(root.x, root.y, root.width, root.height)
+            windowRadius: root.panelRadius
             enabled: !root.noBackground
         }
 
