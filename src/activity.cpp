@@ -19,6 +19,7 @@
 
 #include "activity.h"
 #include "docksettings.h"
+#include "windowinterface.h"
 
 #include <NETWM>
 #include <KWindowSystem>
@@ -41,6 +42,15 @@ Activity::Activity(QObject *parent)
 {
     onActiveWindowChanged();
 
+    if (!KWindowSystem::isPlatformX11()) {
+        // Wayland: KWin's window list (waylandwindowinterface.cpp)
+        WindowInterface *iface = WindowInterface::instance();
+        connect(iface, &WindowInterface::activeChanged, this, &Activity::onActiveWindowChanged);
+        connect(iface, &WindowInterface::windowChanged, this, &Activity::onActiveWindowChanged);
+        connect(iface, &WindowInterface::windowRemoved, this, &Activity::onActiveWindowChanged);
+        return;
+    }
+
     connect(KX11Extras::self(), &KX11Extras::activeWindowChanged, this, &Activity::onActiveWindowChanged);
     connect(KX11Extras::self(), &KX11Extras::windowChanged,
             this, &Activity::onActiveWindowChanged);
@@ -58,6 +68,18 @@ bool Activity::launchPad() const
 #include <QDebug>
 void Activity::onActiveWindowChanged()
 {
+    if (!KWindowSystem::isPlatformX11()) {
+        // The launcher is a layer surface above everything there, never a window
+        if (DockSettings::self()->visibility() == DockSettings::IntellHide) {
+            const bool existsWindowMaximized = WindowInterface::instance()->existsWindowMaximized();
+            if (m_existsWindowMaximized != existsWindowMaximized) {
+                m_existsWindowMaximized = existsWindowMaximized;
+                emit existsWindowMaximizedChanged();
+            }
+        }
+        return;
+    }
+
     KWindowInfo info(KX11Extras::activeWindow(),
                      NET::WMState | NET::WMVisibleName,
                      NET::WM2WindowClass);

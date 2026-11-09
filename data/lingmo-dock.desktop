@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Lingmo Dock
+Comment=The app dock
+Exec=/usr/bin/lingmo-dock
+Icon=preferences-desktop
+NoDisplay=true
+Terminal=false
+# Wayland: KWin hands the window list (open windows, activate, minimize, close)
+# only to programs that ask for it here
+X-KDE-Wayland-Interfaces=org_kde_plasma_window_management

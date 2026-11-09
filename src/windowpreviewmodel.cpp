@@ -17,9 +17,10 @@
 
 #include "windowpreviewmodel.h"
 #include "applicationmodel.h"
-#include "xwindowinterface.h"
+#include "windowinterface.h"
 
 #include <KWindowInfo>
+#include <KWindowSystem>
 #include <KX11Extras>
 
 // Refresh rate of the thumbnails while the popup is open
@@ -31,7 +32,7 @@ WindowPreviewModel::WindowPreviewModel(ApplicationModel *apps, QObject *parent)
     , m_store(std::make_shared<WindowThumbnailStore>())
     , m_thumbnailSize(200, 120)
     , m_capturing(false)
-    , m_activeWindow(KX11Extras::activeWindow())
+    , m_activeWindow(WindowInterface::instance()->activeWindow())
     , m_refreshTimer(new QTimer(this))
 {
     m_refreshTimer->setInterval(RefreshInterval);
@@ -42,6 +43,22 @@ WindowPreviewModel::WindowPreviewModel(ApplicationModel *apps, QObject *parent)
     connect(m_apps, &QAbstractItemModel::rowsInserted, this, &WindowPreviewModel::reload);
     connect(m_apps, &QAbstractItemModel::rowsRemoved, this, &WindowPreviewModel::reload);
     connect(m_apps, &QAbstractItemModel::modelReset, this, &WindowPreviewModel::reload);
+
+    if (!KWindowSystem::isPlatformX11()) {
+        // Wayland: the same events from the window interface; no thumbnails yet
+        // (WindowThumbnail is X11), the popup shows the app icon
+        WindowInterface *iface = WindowInterface::instance();
+        connect(iface, &WindowInterface::windowChanged, this, [this](quint64 wid) {
+            const int i = indexOf(wid);
+            if (i == -1)
+                return;
+            readInfo(m_entries[i]);
+            emit dataChanged(index(i), index(i), { TitleRole, MinimizedRole, OnCurrentDesktopRole });
+        });
+        connect(iface, &WindowInterface::activeChanged, this, [this](quint64 wid) { onActiveWindowChanged(wid); });
+        connect(iface, &WindowInterface::windowRemoved, this, [this](quint64 wid) { onWindowRemoved(wid); });
+        return;
+    }
 
     connect(KX11Extras::self(), &KX11Extras::windowChanged, this, &WindowPreviewModel::onWindowChanged);
     connect(KX11Extras::self(), &KX11Extras::activeWindowChanged, this, &WindowPreviewModel::onActiveWindowChanged);
@@ -180,12 +197,12 @@ std::shared_ptr<WindowThumbnailStore> WindowPreviewModel::store() const
 void WindowPreviewModel::activate(quint64 wid)
 {
     // KWin switches to the window's desktop and unminimizes it
-    XWindowInterface::instance()->forceActiveWindow(wid);
+    WindowInterface::instance()->forceActiveWindow(wid);
 }
 
 void WindowPreviewModel::close(quint64 wid)
 {
-    XWindowInterface::instance()->closeWindow(wid);
+    WindowInterface::instance()->closeWindow(wid);
 }
 
 void WindowPreviewModel::reload()
@@ -232,6 +249,14 @@ WindowPreviewModel::Entry WindowPreviewModel::createEntry(quint64 wid)
 
 void WindowPreviewModel::readInfo(Entry &entry)
 {
+    if (!KWindowSystem::isPlatformX11()) {
+        WindowInterface *iface = WindowInterface::instance();
+        entry.title = iface->windowTitle(entry.wid);
+        entry.minimized = iface->isMinimized(entry.wid);
+        entry.onCurrentDesktop = iface->isOnCurrentDesktop(entry.wid);
+        return;
+    }
+
     const KWindowInfo info(entry.wid, NET::WMVisibleName | NET::WMName | NET::WMState | NET::XAWMState | NET::WMDesktop);
 
     entry.title = info.visibleName();
@@ -294,8 +319,8 @@ void WindowPreviewModel::onActiveWindowChanged(WId wid)
     // The window that loses focus is usually still on screen: keep a picture of it
     // for when it gets minimized or left on another desktop. Without a compositor
     // this would read the window that now covers it, so only with one.
-    if (previous && !m_capturing && KX11Extras::compositingActive()
-            && XWindowInterface::instance()->isAcceptableWindow(previous)) {
+    if (previous && !m_capturing && KWindowSystem::isPlatformX11() && KX11Extras::compositingActive()
+            && WindowInterface::instance()->isAcceptableWindow(previous)) {
         const QImage image = WindowThumbnail::grab(previous, m_thumbnailSize);
         if (!image.isNull())
             m_store->insert(previous, image);

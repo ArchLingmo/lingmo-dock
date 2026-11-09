@@ -36,8 +36,6 @@
 // X11
 #include <NETWM>
 
-static XWindowInterface *INSTANCE = nullptr;
-
 static xcb_connection_t *x11Connection()
 {
 #if QT_CONFIG(xcb)
@@ -69,26 +67,13 @@ static xcb_window_t x11RootWindow()
 #endif
 }
 
-XWindowInterface *XWindowInterface::instance()
-{
-    if (!INSTANCE)
-        INSTANCE = new XWindowInterface;
-
-    return INSTANCE;
-}
-
 XWindowInterface::XWindowInterface(QObject *parent)
-    : QObject(parent)
+    : WindowInterface(parent)
 {
     connect(KX11Extras::self(), &KX11Extras::windowAdded, this, &XWindowInterface::onWindowadded);
     connect(KX11Extras::self(), &KX11Extras::windowRemoved, this, &XWindowInterface::onWindowRemoved);
     connect(KX11Extras::self(), &KX11Extras::windowChanged, this, &XWindowInterface::onWindowChanged);
     connect(KX11Extras::self(), &KX11Extras::activeWindowChanged, this, &XWindowInterface::activeChanged);
-}
-
-void XWindowInterface::enableBlurBehind(QWindow *view, bool enable, const QRegion &region)
-{
-    KWindowEffects::enableBlurBehind(view, enable, region);
 }
 
 WId XWindowInterface::activeWindow()

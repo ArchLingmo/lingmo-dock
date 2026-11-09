@@ -40,6 +40,8 @@
 #include <xcb/xcb.h>
 #include <xcb/shape.h>
 
+#include <LayerShellQt/Window>
+
 MainWindow::MainWindow(QQuickView *parent)
     : QQuickView(parent)
     , m_activity(Activity::self())
@@ -61,8 +63,19 @@ MainWindow::MainWindow(QQuickView *parent)
     setColor(Qt::transparent);
 
     setFlags(Qt::FramelessWindowHint | Qt::WindowDoesNotAcceptFocus);
-    // KWindowSystem::setOnDesktop(winId(), NET::OnAllDesktops);
-    KX11Extras::setType(winId(), NET::Dock);
+    if (KWindowSystem::isPlatformWayland()) {
+        // A panel in the layer above the windows; anchors and margins follow the
+        // dock's edge (applyGeometry), the reserved room the visibility setting
+        m_layerShell = LayerShellQt::Window::get(this);
+        m_layerShell->setScope(QStringLiteral("lingmo-dock"));
+        m_layerShell->setLayer(LayerShellQt::Window::LayerTop);
+        m_layerShell->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);
+        m_layerShell->setActivateOnShow(false);
+        m_layerShell->setScreen(qApp->primaryScreen());
+    } else {
+        // KWindowSystem::setOnDesktop(winId(), NET::OnAllDesktops);
+        KX11Extras::setType(winId(), NET::Dock);
+    }
 
     engine()->rootContext()->setContextProperty("appModel", m_appModel);
     engine()->rootContext()->setContextProperty("process", new ProcessProvider);
@@ -366,16 +379,67 @@ void MainWindow::applyGeometry()
     }
 
     m_panelRect = panel;
+    m_windowRect = rect;
     if (m_magnificationExtent != extent) {
         m_magnificationExtent = extent;
         emit magnificationExtentChanged();
     }
     setGeometry(rect);
+    updateLayerPlacement(rect);
     updateInputShape();
+}
+
+void MainWindow::updateLayerPlacement(const QRect &rect)
+{
+    if (!m_layerShell)
+        return;
+
+    // KWin places a layer surface from its anchors and margins: the edge the dock
+    // sits on, and the gap to that edge (windowRect() centres it along the edge,
+    // and so does KWin within the room the other panels leave)
+    using LS = LayerShellQt::Window;
+    QScreen *primary = qApp->primaryScreen() ? qApp->primaryScreen() : screen();
+    const QRect s = primary->geometry();
+    const bool straight = m_settings->style() == DockSettings::Straight;
+    LS::Anchors anchors;
+    QMargins margins;
+
+    switch (m_settings->direction()) {
+    case DockSettings::Left:
+        anchors = LS::AnchorLeft;
+        if (straight)
+            anchors |= LS::Anchors(LS::AnchorTop | LS::AnchorBottom);
+        margins.setLeft(qMax(0, rect.left() - s.left()));
+        break;
+    case DockSettings::Right:
+        anchors = LS::AnchorRight;
+        if (straight)
+            anchors |= LS::Anchors(LS::AnchorTop | LS::AnchorBottom);
+        margins.setRight(qMax(0, s.right() - rect.right()));
+        break;
+    case DockSettings::Bottom:
+    default:
+        anchors = LS::AnchorBottom;
+        margins.setBottom(qMax(0, s.bottom() - rect.bottom()));
+        break;
+    }
+
+    m_layerShell->setAnchors(anchors);
+    m_layerShell->setMargins(margins);
 }
 
 void MainWindow::updateInputShape()
 {
+    if (m_layerShell) {
+        // Wayland: the mask is the surface's input region. From the rect we asked for:
+        // a layer surface's geometry() doesn't hold its place on screen (KWin puts it
+        // from the anchors), and a mask off by that misses every click
+        if (m_magnificationExtent == 0)
+            setMask(QRegion());
+        else
+            setMask(QRegion(QRect(m_panelRect.topLeft() - m_windowRect.topLeft(), m_panelRect.size())));
+        return;
+    }
     if (!KWindowSystem::isPlatformX11())
         return;
     auto *x11 = qGuiApp->nativeInterface<QNativeInterface::QX11Application>();
@@ -445,7 +509,8 @@ void MainWindow::initSlideWindow()
     else if (m_settings->direction() == DockSettings::Bottom)
         location = KWindowEffects::BottomEdge;
 
-    KWindowEffects::slideWindow(fromWinId(winId()), location);
+    // Wayland has no foreign windows: the dock's own QWindow
+    KWindowEffects::slideWindow(m_layerShell ? static_cast<QWindow *>(this) : fromWinId(winId()), location);
 }
 
 void MainWindow::updateViewStruts()
@@ -458,7 +523,7 @@ void MainWindow::updateViewStruts()
     }
 
     if (m_settings->visibility() == DockSettings::AlwaysShow || m_activity->launchPad()) {
-        XWindowInterface::instance()->setViewStruts(this, m_settings->direction(),
+        WindowInterface::instance()->setViewStruts(this, m_settings->direction(),
                                                     m_panelRect.isValid() ? m_panelRect : geometry(), compositing);
     } else {
         clearViewStruts();
@@ -467,7 +532,7 @@ void MainWindow::updateViewStruts()
 
 void MainWindow::clearViewStruts()
 {
-    XWindowInterface::instance()->clearViewStruts(this);
+    WindowInterface::instance()->clearViewStruts(this);
 }
 
 void MainWindow::createFakeWindow()
@@ -524,6 +589,14 @@ void MainWindow::followPrimaryScreen()
     QScreen *primary = qApp->primaryScreen();
     if (!primary)
         return;
+    if (m_layerShell && m_layerShell->screen() != primary) {
+        // The output of a layer surface is fixed when it is created
+        const bool visible = isVisible();
+        setVisible(false);
+        setScreen(primary);
+        m_layerShell->setScreen(primary);
+        setVisible(visible);
+    }
     initScreens();
     if (screen() != primary)
         setScreen(primary);

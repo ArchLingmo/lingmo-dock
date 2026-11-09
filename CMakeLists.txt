@@ -14,6 +14,9 @@ find_package(Qt6 CONFIG REQUIRED Widgets DBus Gui GuiPrivate Concurrent Linguist
 find_package(XCB REQUIRED COMPONENTS XCB XFIXES COMPOSITE RENDER SHAPE)
 
 find_package(KF6WindowSystem REQUIRED)
+# Wayland session: layer-shell panel and KWin's window list
+find_package(LayerShellQt REQUIRED)
+find_package(KWayland REQUIRED)
 
 set(SRCS
     src/applicationitem.h
@@ -27,7 +30,9 @@ set(SRCS
     src/processprovider.cpp
     src/trashmanager.cpp
     src/utils.cpp
+    src/windowinterface.cpp
     src/xwindowinterface.cpp
+    src/waylandwindowinterface.cpp
     src/activity.cpp
     src/windowpreviewmodel.cpp
     src/windowthumbnail.cpp
@@ -57,6 +62,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         XCB::COMPOSITE
         XCB::RENDER
         XCB::SHAPE
+        LayerShellQt::Interface
+        Plasma::KWaylandClient
 )
 
 file(GLOB TS_FILES translations/*.ts)
@@ -71,3 +78,5 @@ add_custom_target(translations ALL DEPENDS ${QM_FILES} SOURCES ${TS_FILES})
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${QM_FILES} DESTINATION /usr/share/${PROJECT_NAME}/translations)
 install(FILES lingmo-dock-list.conf DESTINATION /etc)
+# Not shown in menus: tells KWin (Wayland) which privileged interfaces the dock uses
+install(FILES data/lingmo-dock.desktop DESTINATION share/applications)

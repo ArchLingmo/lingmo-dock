@@ -22,6 +22,7 @@
 
 #include "applicationitem.h"
 #include "docksettings.h"
+#include "windowinterface.h"
 #include <QObject>
 #include <QSet>
 
@@ -29,38 +30,31 @@
 #include <KWindowInfo>
 #include <KWindowEffects>
 
-class XWindowInterface : public QObject
+// X11 session
+class XWindowInterface : public WindowInterface
 {
     Q_OBJECT
 
 public:
-    static XWindowInterface *instance();
     explicit XWindowInterface(QObject *parent = nullptr);
 
-    void enableBlurBehind(QWindow *view, bool enable = true, const QRegion &region = QRegion());
+    WId activeWindow() override;
+    void minimizeWindow(WId win) override;
+    void closeWindow(WId id) override;
+    void forceActiveWindow(WId win) override;
 
-    WId activeWindow();
-    void minimizeWindow(WId win);
-    void closeWindow(WId id);
-    void forceActiveWindow(WId win);
+    QMap<QString, QVariant> requestInfo(quint64 wid) override;
+    QString requestWindowClass(quint64 wid) override;
+    bool isAcceptableWindow(quint64 wid) override;
 
-    QMap<QString, QVariant> requestInfo(quint64 wid);
-    QString requestWindowClass(quint64 wid);
-    bool isAcceptableWindow(quint64 wid);
+    void setViewStruts(QWindow *view, DockSettings::Direction direction, const QRect &rect, bool compositing = false) override;
+    void clearViewStruts(QWindow *view) override;
 
-    void setViewStruts(QWindow *view, DockSettings::Direction direction, const QRect &rect, bool compositing = false);
-    void clearViewStruts(QWindow *view);
+    void startInitWindows() override;
 
-    void startInitWindows();
+    QString desktopFilePath(quint64 wid) override;
 
-    QString desktopFilePath(quint64 wid);
-
-    void setIconGeometry(quint64 wid, const QRect &rect);
-
-signals:
-    void windowAdded(quint64 wid);
-    void windowRemoved(quint64 wid);
-    void activeChanged(quint64 wid);
+    void setIconGeometry(quint64 wid, const QRect &rect) override;
 
 private:
     void onWindowadded(quint64 wid);

@@ -23,6 +23,10 @@
 #include <QQuickView>
 #include <QTimer>
 
+namespace LayerShellQt {
+class Window;
+}
+
 class FakeWindow : public QQuickView
 {
     Q_OBJECT
@@ -48,6 +52,8 @@ private:
 
     bool m_delayedContainsMouse;
     bool m_containsMouse;
+    // Wayland: the strip's layer surface (null on X11)
+    LayerShellQt::Window *m_layerShell = nullptr;
 };
 
 #endif // FAKEWINDOW_H

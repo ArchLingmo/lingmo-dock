@@ -92,6 +92,9 @@ Item {
                        : isLeft ? Item.Left : isRight ? Item.Right : Item.Bottom
 
         visible: !dragStarted
+        // Hidden (not invisible: the drag image and the layout use it) while the
+        // sharp magnified copy below is shown
+        opacity: iconLarge.visible ? 0 : 1
 
         // Smooth scale animation
         Behavior on scale {
@@ -107,6 +110,37 @@ Item {
             source: icon
             color: "#000000"
             opacity: iconArea.pressed && !mouseArea.drag.active ? 0.4 : 0
+        }
+    }
+
+    // Wayland: the magnified icon is drawn at its largest size and scaled down, so
+    // it stays sharp instead of stretching the small one. Pinned to the point the
+    // magnification grows from, so it moves exactly like the icon above.
+    readonly property bool sharpMagnification: Qt.platform.pluginName.startsWith("wayland")
+                                               && Settings.magnification && maxMagnification > 1
+    LingmoUI.IconItem {
+        id: iconLarge
+        readonly property bool fromBottom: icon.transformOrigin === Item.Bottom
+        readonly property bool fromLeft: icon.transformOrigin === Item.Left
+        readonly property bool fromRight: icon.transformOrigin === Item.Right
+        width: control.iconSize * control.maxMagnification
+        height: width
+        source: iconName
+        visible: control.sharpMagnification && !dragStarted && icon.scale > 1.001
+        scale: icon.scale / control.maxMagnification
+        transformOrigin: icon.transformOrigin
+
+        anchors.bottom: fromBottom ? icon.bottom : undefined
+        anchors.left: fromLeft ? icon.left : undefined
+        anchors.right: fromRight ? icon.right : undefined
+        anchors.horizontalCenter: fromLeft || fromRight ? undefined : icon.horizontalCenter
+        anchors.verticalCenter: fromBottom ? undefined : icon.verticalCenter
+
+        ColorOverlay {
+            anchors.fill: parent
+            source: iconLarge
+            color: "#000000"
+            opacity: iconColorize.opacity
         }
     }
 

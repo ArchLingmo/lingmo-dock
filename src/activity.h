@@ -47,7 +47,7 @@ private:
     quint32 m_pid;
 
     bool m_existsWindowMaximized;
-    bool m_launchPad;
+    bool m_launchPad = false;
 };
 
 #endif // ACTIVITY_H

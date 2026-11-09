@@ -30,6 +30,10 @@
 #include "trashmanager.h"
 #include "windowpreviewmodel.h"
 
+namespace LayerShellQt {
+class Window;
+}
+
 class MainWindow : public QQuickView
 {
     Q_OBJECT
@@ -100,6 +104,8 @@ private:
     void applyGeometry();
     // Only the panel takes clicks: the room above it stays click-through
     void updateInputShape();
+    // Wayland: anchors and margins of the layer surface for `rect`
+    void updateLayerPlacement(const QRect &rect);
     void resizeWindow();
     void initScreens();
     void initSlideWindow();
@@ -139,7 +145,11 @@ private:
     QTimer *m_hideTimer;
 
     QRect m_panelRect;
+    // The whole window (panel + room for magnified icons), as last requested
+    QRect m_windowRect;
     int m_magnificationExtent = 0;
+    // Wayland: the dock's layer surface (null on X11)
+    LayerShellQt::Window *m_layerShell = nullptr;
 };
 
 #endif // MAINWINDOW_H

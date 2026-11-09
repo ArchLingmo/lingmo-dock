@@ -11,6 +11,13 @@ Window {
     color: "transparent"
     flags: Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus | Qt.ToolTip
 
+    // Wayland: a layer surface above the dock, placed by the same x/y as on X11
+    LingmoUI.LayerShell.layer: LingmoUI.LayerShell.LayerOverlay
+    LingmoUI.LayerShell.positionFromWindow: true
+    LingmoUI.LayerShell.keyboardInteractivity: LingmoUI.LayerShell.KeyboardNone
+    LingmoUI.LayerShell.activateOnShow: false
+    LingmoUI.LayerShell.scope: "lingmo-dock-preview"
+
     // The dock item the popup points at
     property Item target: null
     property string iconName: ""

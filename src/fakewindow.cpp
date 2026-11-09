@@ -34,6 +34,8 @@
 // X11
 #include <NETWM>
 
+#include <LayerShellQt/Window>
+
 FakeWindow::FakeWindow(QQuickView *parent)
     : QQuickView(parent)
     , m_delayedContainsMouse(false)
@@ -45,6 +47,18 @@ FakeWindow::FakeWindow(QQuickView *parent)
              Qt::WindowStaysOnTopHint |
              Qt::NoDropShadowWindowHint |
              Qt::WindowDoesNotAcceptFocus);
+    if (KWindowSystem::isPlatformWayland()) {
+        // A thin strip along the dock's edge, above the windows, that takes no
+        // keyboard; it sits on the edge even where other panels reserve room
+        m_layerShell = LayerShellQt::Window::get(this);
+        m_layerShell->setScope(QStringLiteral("lingmo-dock-edge"));
+        m_layerShell->setLayer(LayerShellQt::Window::LayerTop);
+        m_layerShell->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);
+        m_layerShell->setActivateOnShow(false);
+        m_layerShell->setExclusiveZone(-1);
+        m_layerShell->setScreen(qApp->primaryScreen());
+        updateGeometry();
+    }
     // setScreen(qApp->primaryScreen());
     // updateGeometry();
     show();
@@ -87,7 +101,8 @@ bool FakeWindow::event(QEvent *e)
             m_delayedMouseTimer.start();
         }
     } else if (e->type() == QEvent::Show) {
-        KX11Extras::setState(winId(), NET::SkipTaskbar | NET::SkipPager | NET::SkipSwitcher);
+        if (KWindowSystem::isPlatformX11())
+            KX11Extras::setState(winId(), NET::SkipTaskbar | NET::SkipPager | NET::SkipSwitcher);
     }
 
     return QQuickView::event(e);
@@ -127,4 +142,29 @@ void FakeWindow::updateGeometry()
     }
 
     setGeometry(newRect);
+
+    if (m_layerShell) {
+        using LS = LayerShellQt::Window;
+        LS::Anchors anchors;
+        switch (DockSettings::self()->direction()) {
+        case DockSettings::Left:
+            anchors = LS::Anchors(LS::AnchorLeft | LS::AnchorTop | LS::AnchorBottom);
+            break;
+        case DockSettings::Right:
+            anchors = LS::Anchors(LS::AnchorRight | LS::AnchorTop | LS::AnchorBottom);
+            break;
+        case DockSettings::Bottom:
+        default:
+            anchors = LS::Anchors(LS::AnchorBottom | LS::AnchorLeft | LS::AnchorRight);
+            break;
+        }
+        m_layerShell->setAnchors(anchors);
+        if (screen() && m_layerShell->screen() != screen()) {
+            // The output of a layer surface is fixed when it is created
+            const bool visible = isVisible();
+            setVisible(false);
+            m_layerShell->setScreen(screen());
+            setVisible(visible);
+        }
+    }
 }
